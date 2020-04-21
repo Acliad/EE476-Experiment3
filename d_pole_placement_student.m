@@ -1,32 +1,48 @@
 % IMPORTANT: Make sure you run setup_rotpen.m first. You need the (A,B)
 % state-space matrices.
 %
-%% Find Tranformation Matrix W
-% Characteristic equation: s^4 + a_4*s^3 + a_3*s^2 + a_2*s + a_1
-a = poly(A);
-% 
-% Companion matrices (Ac, Bc)
-Ac = [  0 1 0 0;
-        0 0 1 0;
-        0 0 0 1;
-        -a(5) -a(4) -a(3) -a(2)];
-%
-Bc = [0; 0; 0; 1];
-%
-% Controllability
-T = 0;
-% Controllability of companion matrices
-Tc = 0;
-% Transformation matrices
-W = 0;
-%
-%% Find Gain
-% Companion state-feedback control gain
-Kc = [0 0 0 0];
-% Convert back from companion form
-K = [0 0 0 0]
-%
-%% Closed-loop System Poles
 % Find poles of closed-loop system. 
 % Verify that they are the same as the desired poles.
-cls_poles = [0 0 0 0]
+
+char_coef = poly(A); % Characteristic equation coefficients 
+
+length_n = length(char_coef(2:end));
+
+A_companion = zeros(length_n, length_n);
+
+% Set up 1s
+A_companion(1:end-1, 2:end) = eye(length_n-1, length_n-1);
+A_companion(end, :) = -char_coef(end:-1:2);
+
+% Set up B vector
+B_companion = zeros(length_n, 1);
+B_companion(end) = 1;
+
+zeta_desired = 0.7;
+wn_desired = 4; % rad/s
+
+p1_desired = -wn_desired*exp(1j*acos(zeta_desired));
+p2_desired = conj(p1_desired);
+p3_desired = -30;
+p4_desired = -40;
+
+% Characteristic equation coefficients 
+char_desired_coef = conv([1 -p1_desired], [1 -p2_desired]);
+char_desired_coef = conv(char_desired_coef, [1 -p3_desired]);
+char_desired_coef = conv(char_desired_coef, [1 -p4_desired]);
+
+K_bar = char_desired_coef(2:end) - char_coef(2:end);
+
+A_companion_desired = A_companion;
+A_companion_desired(end, :) =  A_companion(end, :) - flip(K_bar);
+
+T = ctrb(A, B);
+
+T_bar = [
+         B_companion, A_companion * B_companion, ...
+         A_companion^2 * B_companion, A_companion^3 * B_companion
+         ];
+
+W = T/(T_bar);
+
+K = flip(K_bar)/W;
